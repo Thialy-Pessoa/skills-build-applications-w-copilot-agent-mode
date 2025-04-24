@@ -1,64 +1,55 @@
 from django.core.management.base import BaseCommand
 from octofit_tracker.models import User, Team, Activity, Leaderboard, Workout
-from django.conf import settings
-from pymongo import MongoClient
-from datetime import timedelta, datetime
-from bson import ObjectId
+from datetime import datetime, timedelta
 
 class Command(BaseCommand):
-    help = 'Populate the database with test data for users, teams, activity, leaderboard, and workouts'
+    help = 'Populate the database with test data for users, teams, activities, leaderboard, and workouts'
 
     def handle(self, *args, **kwargs):
-        # Conectar ao MongoDB
-        client = MongoClient(settings.DATABASES['default']['CLIENT']['host'], settings.DATABASES['default']['CLIENT']['port'])
-        db = client[settings.DATABASES['default']['NAME']]
+        # Clear existing data
+        User.objects.all().delete()
+        Team.objects.all().delete()
+        Activity.objects.all().delete()
+        Leaderboard.objects.all().delete()
+        Workout.objects.all().delete()
 
-        # Limpar coleções existentes
-        db.users.drop()
-        db.teams.drop()
-        db.activity.drop()
-        db.leaderboard.drop()
-        db.workouts.drop()
-
-        # Criar usuários
+        # Create users
         users = [
-            {"_id": ObjectId(), "username": "thundergod", "email": "thundergod@mhigh.edu", "password": "thundergodpassword"},
-            {"_id": ObjectId(), "username": "metalgeek", "email": "metalgeek@mhigh.edu", "password": "metalgeekpassword"},
-            {"_id": ObjectId(), "username": "zerocool", "email": "zerocool@mhigh.edu", "password": "zerocoolpassword"},
-            {"_id": ObjectId(), "username": "crashoverride", "email": "crashoverride@mhigh.edu", "password": "crashoverridepassword"},
+            User(email='john.doe@example.com', name='John Doe', password='password123'),
+            User(email='jane.smith@example.com', name='Jane Smith', password='password123'),
+            User(email='bob.brown@example.com', name='Bob Brown', password='password123'),
         ]
-        db.users.insert_many(users)
+        User.objects.bulk_create(users)
 
-        # Criar times
-        teams = [
-            {"_id": ObjectId(), "name": "Team Alpha", "members": [users[0]["_id"], users[1]["_id"]]},
-            {"_id": ObjectId(), "name": "Team Beta", "members": [users[2]["_id"], users[3]["_id"]]},
-        ]
-        db.teams.insert_many(teams)
+        # Create teams
+        team1 = Team(name='Team Alpha')
+        team2 = Team(name='Team Beta')
+        team1.save()
+        team2.save()
+        team1.members.add(users[0], users[1])
+        team2.members.add(users[2])
 
-        # Criar atividades
+        # Create activities
         activities = [
-            {"_id": ObjectId(), "user": users[0]["_id"], "activity_type": "run", "duration": 30},
-            {"_id": ObjectId(), "user": users[1]["_id"], "activity_type": "walk", "duration": 45},
-            {"_id": ObjectId(), "user": users[2]["_id"], "activity_type": "cycle", "duration": 60},
-            {"_id": ObjectId(), "user": users[3]["_id"], "activity_type": "swim", "duration": 25},
+            Activity(user=users[0], type='Running', duration=30, date=datetime.now() - timedelta(days=1)),
+            Activity(user=users[1], type='Cycling', duration=60, date=datetime.now() - timedelta(days=2)),
+            Activity(user=users[2], type='Swimming', duration=45, date=datetime.now() - timedelta(days=3)),
         ]
-        db.activity.insert_many(activities)
+        Activity.objects.bulk_create(activities)
 
-        # Criar leaderboard
-        leaderboard = [
-            {"_id": ObjectId(), "user": users[0]["_id"], "score": 100},
-            {"_id": ObjectId(), "user": users[1]["_id"], "score": 80},
-            {"_id": ObjectId(), "user": users[2]["_id"], "score": 120},
-            {"_id": ObjectId(), "user": users[3]["_id"], "score": 90},
+        # Create leaderboard entries
+        leaderboard_entries = [
+            Leaderboard(team=team1, points=100),
+            Leaderboard(team=team2, points=80),
         ]
-        db.leaderboard.insert_many(leaderboard)
+        Leaderboard.objects.bulk_create(leaderboard_entries)
 
-        # Criar workouts
+        # Create workouts
         workouts = [
-            {"_id": ObjectId(), "name": "Pushups", "description": "Do 20 pushups", "date": datetime.utcnow()},
-            {"_id": ObjectId(), "name": "Situps", "description": "Do 30 situps", "date": datetime.utcnow()},
+            Workout(user=users[0], description='Morning Run', date=datetime.now() - timedelta(days=1)),
+            Workout(user=users[1], description='Evening Cycling', date=datetime.now() - timedelta(days=2)),
+            Workout(user=users[2], description='Swimming Practice', date=datetime.now() - timedelta(days=3)),
         ]
-        db.workouts.insert_many(workouts)
+        Workout.objects.bulk_create(workouts)
 
-        self.stdout.write(self.style.SUCCESS('Banco de dados populado com dados de teste!'))
+        self.stdout.write(self.style.SUCCESS('Successfully populated the database with test data.'))
